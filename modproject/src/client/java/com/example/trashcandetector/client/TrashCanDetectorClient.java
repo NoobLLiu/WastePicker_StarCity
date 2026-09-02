@@ -137,14 +137,15 @@ public class TrashCanDetectorClient implements ClientModInitializer {
             Path outDir = client.runDirectory.toPath().resolve("trashcan-detector");
             Files.createDirectories(outDir);
 
+            // 两个文件共用同一时间戳，保证文件名一致
+            String ts = timestamp();
+
             // 写入 JSON
-            String jsonName = "trashcan_" + timestamp() + ".json";
-            Path jsonPath = outDir.resolve(jsonName);
+            Path jsonPath = outDir.resolve("trashcan_" + ts + ".json");
             Files.writeString(jsonPath, toJson(items, totalCount), StandardCharsets.UTF_8);
 
             // 写入 Markdown 表格
-            String mdName = "trashcan_" + timestamp() + ".md";
-            Path mdPath = outDir.resolve(mdName);
+            Path mdPath = outDir.resolve("trashcan_" + ts + ".md");
             Files.writeString(mdPath, toMarkdown(items, totalCount), StandardCharsets.UTF_8);
 
             LOGGER.info("垃圾桶内容已导出: {} / {}", jsonPath, mdPath);
