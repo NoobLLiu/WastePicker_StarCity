@@ -67,7 +67,7 @@ public class TrashCanDetectorClient implements ClientModInitializer {
                         false
                     );
                     // 发送 /trash 指令打开垃圾桶插件 GUI
-                    client.player.sendCommand("trash");
+                    client.getNetworkHandler().sendChatCommand("trash");
                     waitingForTrashScreen = true;
                 }
             }
@@ -285,7 +285,7 @@ public class TrashCanDetectorClient implements ClientModInitializer {
             Text.literal("[垃圾桶探测器] 正在自动打开垃圾桶..."),
             false
         );
-        client.player.sendCommand("trash");
+        client.getNetworkHandler().sendChatCommand("trash");
         waitingForTrashScreen = true;
     }
 
