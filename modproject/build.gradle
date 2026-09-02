@@ -71,6 +71,8 @@ java {
 }
 
 jar {
+    from(sourceSets.client.output.classesDirs)
+    from(sourceSets.client.output.resourcesDir)
     from("LICENSE") {
         rename { "${it}_${project.archive_base_name}" }
     }
