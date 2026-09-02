@@ -2,8 +2,7 @@ pluginManagement {
     repositories {
         maven {
             name = 'Fabric'
-            url = 'https://maven.fabricmc.net/repository/fabric-loom/'
-            allowInsecureProtocol = false
+            url = 'https://maven.fabricmc.net/'
         }
         mavenCentral()
         gradlePluginPortal()
