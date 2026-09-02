@@ -33,6 +33,18 @@ loom {
     accessWidenerPath = file("src/main/resources/trashcandetector.accesswidener")
 }
 
+// 配置客户端源码集，让 Fabric Loom 编译 src/client/java 下的代码
+sourceSets {
+    client {
+        compileClasspath += main.compileClasspath
+        runtimeClasspath += main.runtimeClasspath
+    }
+    main {
+        compileClasspath += client.compileClasspath
+        runtimeClasspath += client.runtimeClasspath
+    }
+}
+
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
