@@ -8,6 +8,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtHelper;
+import net.minecraft.registry.Registries;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
 import net.minecraft.text.ClickEvent;
@@ -27,6 +28,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.StreamSupport;
 
 /**
  * 客户端入口点：监听垃圾桶刷新消息，自动打开垃圾桶 GUI，读取并导出内容
@@ -258,5 +260,41 @@ public class TrashCanDetectorClient implements ClientModInitializer {
         return text.contains("物品被意外清理")
             && text.contains("公共垃圾桶")
             && text.contains("领回");
+    }
+
+    // ==================== #pick 指令支持（供 Mixin 调用） ====================
+
+    /**
+     * 由 ChatScreenMixin 调用：触发自动打开垃圾桶
+     * @param argument 用户输入的物品名称参数（可为空）
+     */
+    public static void triggerAutoPick(String argument) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.player == null) return;
+
+        if (waitingForTrashScreen || pendingRead) {
+            client.player.sendMessage(
+                Text.literal("[垃圾桶探测器] 已在处理中，请稍候..."),
+                false
+            );
+            return;
+        }
+
+        LOGGER.info("玩家通过 #pick 指令触发，参数: {}", argument);
+        client.player.sendMessage(
+            Text.literal("[垃圾桶探测器] 正在自动打开垃圾桶..."),
+            false
+        );
+        client.player.networkHandler.sendCommand("trash");
+        waitingForTrashScreen = true;
+    }
+
+    /**
+     * 由 ChatScreenMixin 调用：返回所有注册物品 ID 用于 Tab 补全
+     */
+    public static Iterable<String> getItemIdSuggestions() {
+        return () -> StreamSupport.stream(Registries.ITEM.spliterator(), false)
+            .map(item -> Registries.ITEM.getId(item).toString())
+            .iterator();
     }
 }

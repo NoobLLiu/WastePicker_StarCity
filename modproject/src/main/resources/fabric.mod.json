@@ -8,6 +8,9 @@
   "entrypoints": {
     "client": ["com.example.trashcandetector.client.TrashCanDetectorClient"]
   },
+  "mixins": [
+    "trashcandetector.client.mixins.json"
+  ],
   "depends": {
     "fabricloader": ">=0.18.0",
     "minecraft": "~1.21.11",

@@ -1,0 +1,11 @@
+{
+  "required": true,
+  "package": "com.example.trashcandetector.client.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "ChatScreenMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
