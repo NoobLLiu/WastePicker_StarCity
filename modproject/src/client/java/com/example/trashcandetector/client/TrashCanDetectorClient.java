@@ -6,8 +6,8 @@ import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
+import net.minecraft.component.DataComponentTypes;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NbtHelper;
 import net.minecraft.registry.Registries;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
@@ -52,7 +52,7 @@ public class TrashCanDetectorClient implements ClientModInitializer {
         LOGGER.info("TrashCan Detector 已加载，开始监听垃圾桶刷新消息");
 
         // 1) 聊天消息监听：检测到垃圾桶提示后自动发送 /trash
-        ClientReceiveMessageEvents.ALLOW_GAME_MESSAGE.register((message, overlay) -> {
+        ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) -> {
             if (overlay) return true;
 
             String text = message.getString();
@@ -67,7 +67,7 @@ public class TrashCanDetectorClient implements ClientModInitializer {
                         false
                     );
                     // 发送 /trash 指令打开垃圾桶插件 GUI
-                    client.player.networkHandler.sendCommand("trash");
+                    client.player.sendCommand("trash");
                     waitingForTrashScreen = true;
                 }
             }
@@ -117,8 +117,8 @@ public class TrashCanDetectorClient implements ClientModInitializer {
                 item.put("item", stack.getItem().toString());
                 item.put("name", stack.getName().getString());
                 item.put("count", stack.getCount());
-                if (stack.hasNbt()) {
-                    item.put("nbt", NbtHelper.toNbtProviderString(stack.getNbt()));
+                if (stack.contains(DataComponentTypes.CUSTOM_DATA)) {
+                    item.put("custom_data", stack.get(DataComponentTypes.CUSTOM_DATA).toString());
                 }
                 items.add(item);
                 totalCount += stack.getCount();
@@ -235,7 +235,7 @@ public class TrashCanDetectorClient implements ClientModInitializer {
             .setStyle(Style.EMPTY
                 .withColor(0x55FF55)
                 .withUnderline(true)
-                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_FILE, absPath)));
+                .withClickEvent(new ClickEvent.OpenFile(absPath)));
 
         client.player.sendMessage(prefix.append(link), false);
     }
@@ -285,7 +285,7 @@ public class TrashCanDetectorClient implements ClientModInitializer {
             Text.literal("[垃圾桶探测器] 正在自动打开垃圾桶..."),
             false
         );
-        client.player.networkHandler.sendCommand("trash");
+        client.player.sendCommand("trash");
         waitingForTrashScreen = true;
     }
 
