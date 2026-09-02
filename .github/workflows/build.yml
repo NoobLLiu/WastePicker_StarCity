@@ -21,8 +21,6 @@ jobs:
 
       - name: 设置 Gradle
         uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '9.6'
 
       - name: 构建
         run: gradle build --no-daemon
