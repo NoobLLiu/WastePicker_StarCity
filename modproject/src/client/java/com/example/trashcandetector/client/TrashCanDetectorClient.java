@@ -19,7 +19,7 @@ public class TrashCanDetectorClient implements ClientModInitializer {
     public void onInitializeClient() {
         LOGGER.info("TrashCan Detector 已加载，开始监听垃圾桶刷新消息");
 
-        ClientReceiveMessageEvents.ALLOW_GAME_MESSAGE.register((message, overlay) -> {
+        ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) -> {
             if (overlay) return true;
 
             String text = message.getString();
