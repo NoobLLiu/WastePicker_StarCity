@@ -1,0 +1,23 @@
+# Gradle
+.gradle/
+build/
+out/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# Minecraft
+run/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 敏感文件
+.env
+*.key
+credentials.*
