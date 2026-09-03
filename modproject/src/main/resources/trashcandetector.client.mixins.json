@@ -3,7 +3,8 @@
   "package": "com.example.trashcandetector.client.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "ChatScreenMixin"
+    "ChatScreenMixin",
+    "ClientPlayNetworkHandlerMixin"
   ],
   "injectors": {
     "defaultRequire": 1
