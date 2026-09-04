@@ -29,8 +29,10 @@ public final class TrashPicker {
     private static final int UI_END = 54;
     private static final String NEXT_PAGE_BUTTON = "下一页";
 
-    /** 拾取/丢出点击后的确认等待（tick） */
-    private static final int VERIFY_TICKS = 10;
+    /** 拾取/丢出点击后先等这几 tick 再轮询（点击回包尚未到达，此时读到的一定是旧状态） */
+    private static final int VERIFY_MIN_TICKS = 2;
+    /** 拾取确认上限（tick）：物品始终仍在原格才判定失败——背包满转丢出 / 丢出被拒跳过 */
+    private static final int VERIFY_MAX_TICKS = 10;
     /** 点击“下一页”后先等这几 tick 再开始轮询（点击回包尚未到达，此时读到的一定是旧页） */
     private static final int FLIP_MIN_TICKS = 3;
     /** 翻页等待上限（tick）：内容始终未变才判定已到最后一页（保留 1 秒兜底，防慢服误判翻到底） */
@@ -177,11 +179,13 @@ public final class TrashPicker {
     }
 
     /**
-     * 确认拾取结果：shift 点击后物品仍在原格 → 背包已满，改为整组丢出
+     * 确认拾取结果：最小等待后逐 tick 轮询，物品一从原格消失立即确认成功（无需等满上限）；
+     * 物品始终仍在才在等满 VERIFY_MAX_TICKS 后判定失败（背包满转丢出 / 丢出被拒跳过），
+     * 保留兜底上限防止把“回包慢”误判成“背包满”而错误丢出。
      */
     private static void tickVerify(MinecraftClient client, ScreenHandler handler) {
         waitTicks++;
-        if (waitTicks < VERIFY_TICKS) {
+        if (waitTicks < VERIFY_MIN_TICKS) {
             return;
         }
 
@@ -194,26 +198,30 @@ public final class TrashPicker {
                 consecutiveFailures = 0;
                 scanSlot++;
                 phase = Phase.SCAN;
-            } else {
-                // 背包已满或被拒绝 → 整组丢到身边（等同 Ctrl+Q）
+            } else if (waitTicks >= VERIFY_MAX_TICKS) {
+                // 等满上限物品仍在 → 背包已满或被拒绝 → 整组丢到身边（等同 Ctrl+Q）
                 click(client, handler, actionSlot, 1, SlotActionType.THROW);
                 phase = Phase.VERIFY_THROW;
                 waitTicks = 0;
             }
         } else {
             if (!stillPresent) {
+                // 已丢出到身边
                 tally(false);
                 consecutiveFailures = 0;
-            } else {
+                scanSlot++;
+                phase = Phase.SCAN;
+            } else if (waitTicks >= VERIFY_MAX_TICKS) {
+                // 等满上限仍在 → 丢出被拒，跳过该格
                 consecutiveFailures++;
                 TrashCanDetectorClient.feedback("拾取失败：" + actionName + " 仍在垃圾桶中，跳过");
                 if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
                     abort(client, "连续 " + MAX_CONSECUTIVE_FAILURES + " 次拾取失败");
                     return;
                 }
+                scanSlot++;
+                phase = Phase.SCAN;
             }
-            scanSlot++;
-            phase = Phase.SCAN;
         }
     }
 
