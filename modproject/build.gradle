@@ -31,17 +31,16 @@ repositories {
 
 loom {
     accessWidenerPath = file("src/main/resources/trashcandetector.accesswidener")
-}
 
-// 配置客户端源码集，让 Fabric Loom 编译 src/client/java 下的代码
-sourceSets {
-    client {
-        compileClasspath += main.compileClasspath
-        runtimeClasspath += main.runtimeClasspath
-    }
-    main {
-        compileClasspath += client.compileClasspath
-        runtimeClasspath += client.runtimeClasspath
+    // 标准 split 源码集：src/client/java 仅客户端可见，
+    // Loom 会自动为其配置 Mixin 注解处理器与 refmap（生产环境必需）
+    splitEnvironmentSourceSets()
+
+    mods {
+        "trashcandetector" {
+            sourceSet sourceSets.main
+            sourceSet sourceSets.client
+        }
     }
 }
 
@@ -71,8 +70,6 @@ java {
 }
 
 jar {
-    from(sourceSets.client.output.classesDirs)
-    from(sourceSets.client.output.resourcesDir)
     from("LICENSE") {
         rename { "${it}_${project.archive_base_name}" }
     }

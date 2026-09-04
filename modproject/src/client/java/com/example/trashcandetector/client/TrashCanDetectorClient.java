@@ -8,12 +8,8 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.ingame.HandledScreen;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.item.ItemStack;
-import net.minecraft.registry.Registries;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,30 +24,37 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.StreamSupport;
 
 /**
- * 客户端入口点：监听垃圾桶刷新消息，自动打开垃圾桶 GUI，读取并导出内容
+ * 客户端入口点：
+ * 1. 监听垃圾桶刷新消息，自动打开垃圾桶 GUI 并导出内容（//pick start 也会走到这里）
+ * 2. 通过 //pick 指令驱动 TrashPicker 自动翻页拾取（指令解析见 PickCommandHandler）；
+ *    //pick auto 开启后，检测到刷新时导出完成也会自动接续翻页拾取
  */
 public class TrashCanDetectorClient implements ClientModInitializer {
 
     public static final String MOD_ID = "trashcandetector";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
+    private static final String PREFIX = "[垃圾桶探测器] ";
     private static final int READ_DELAY_TICKS = 20;
 
-    /** 已检测到垃圾桶消息，正在等待 /trash 打开容器 GUI */
+    /** 已检测到垃圾桶消息或 //pick start，正在等待 /trash 打开容器 GUI */
     private static boolean waitingForTrashScreen;
     /** 容器 GUI 已打开，等待服务器同步槽位数据 */
     private static boolean pendingRead;
     private static HandledScreen<?> pendingScreen;
     private static int pendingTicks;
+    /** 导出完成后自动开始拾取（//pick start，或 //pick auto 开启时由刷新消息触发） */
+    private static boolean pickRequested;
+    /** //pick auto 开关：开启后检测到垃圾桶刷新时，导出完成自动接续翻页拾取 */
+    private static boolean autoPick;
 
     @Override
     public void onInitializeClient() {
         LOGGER.info("TrashCan Detector 已加载，开始监听垃圾桶刷新消息");
 
-        // 1) 聊天消息监听：检测到垃圾桶提示后自动发送 /trash
+        // 1) 聊天消息监听：检测到垃圾桶提示后自动发送 /trash（自动拾取任务运行中时忽略）
         ClientReceiveMessageEvents.ALLOW_GAME.register((message, overlay) -> {
             if (overlay) return true;
 
@@ -59,16 +62,27 @@ public class TrashCanDetectorClient implements ClientModInitializer {
             String stripped = stripPunctuation(text);
 
             if (containsTrashKeywords(stripped)) {
+                if (isBusy()) {
+                    LOGGER.info("检测到垃圾桶刷新消息，但当前有任务进行中，忽略");
+                    return true;
+                }
+
                 LOGGER.info("检测到垃圾桶刷新消息: {}", text);
                 MinecraftClient client = MinecraftClient.getInstance();
                 if (client.player != null) {
                     client.player.sendMessage(
-                        Text.literal("[垃圾桶探测器] 检测到垃圾桶刷新，正在自动打开..."),
+                        Text.literal(PREFIX + "检测到垃圾桶刷新，正在自动打开..."),
                         false
                     );
                     // 发送 /trash 指令打开垃圾桶插件 GUI
                     client.getNetworkHandler().sendChatCommand("trash");
                     waitingForTrashScreen = true;
+                    // //pick auto 开启时，导出完成后自动接续翻页拾取
+                    pickRequested = autoPick;
+                    if (autoPick && PickList.isEmpty()) {
+                        feedback("自动拾取已开启，但搜索列表为空（//pick add 添加物品），本次仅导出");
+                        pickRequested = false;
+                    }
                 }
             }
 
@@ -87,18 +101,87 @@ public class TrashCanDetectorClient implements ClientModInitializer {
             LOGGER.info("检测到容器 GUI 已打开，等待槽位数据同步...");
         });
 
-        // 3) 每 tick 检查：延迟后读取容器内容并导出
+        // 3) 每 tick 检查：延迟后读取容器内容并导出；随后驱动拾取状态机
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            if (!pendingRead || pendingScreen == null) return;
+            if (pendingRead && pendingScreen != null) {
+                pendingTicks++;
+                if (pendingTicks < READ_DELAY_TICKS) return;
 
-            pendingTicks++;
-            if (pendingTicks < READ_DELAY_TICKS) return;
+                // 延迟结束，读取并导出首页内容
+                pendingRead = false;
+                boolean doPick = pickRequested;
+                pickRequested = false;
+                readAndExportContainer(client, pendingScreen);
+                pendingScreen = null;
 
-            // 延迟结束，开始读取槽位
-            pendingRead = false;
-            readAndExportContainer(client, pendingScreen);
-            pendingScreen = null;
+                // //pick start 或 auto 模式：导出后开始自动翻页拾取
+                if (doPick) {
+                    TrashPicker.begin();
+                }
+            }
+
+            TrashPicker.tick(client);
         });
+    }
+
+    static boolean isBusy() {
+        return waitingForTrashScreen || pendingRead || TrashPicker.isActive();
+    }
+
+    /**
+     * 由 PickCommandHandler 调用（//pick auto）：开关自动拾取模式，返回切换后的状态
+     */
+    static boolean toggleAutoPick() {
+        autoPick = !autoPick;
+        return autoPick;
+    }
+
+    /**
+     * 由 PickCommandHandler 调用（//pick start）：请求开始自动拾取
+     */
+    static void requestPickStart() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.player == null || client.getNetworkHandler() == null) {
+            feedback("请先进入游戏服务器后再使用 //pick start");
+            return;
+        }
+        if (PickList.isEmpty()) {
+            feedback("搜索列表为空，请先用 //pick add <物品ID> 添加物品（//pick list 查看）");
+            return;
+        }
+        if (TrashPicker.isActive()) {
+            feedback("正在搜索中，请等待当前任务完成");
+            return;
+        }
+        if (pendingRead || waitingForTrashScreen) {
+            // 垃圾桶已经打开/正在打开，导出完成后直接开始搜索
+            pickRequested = true;
+            feedback("垃圾桶正在打开，导出后将自动开始搜索...");
+            return;
+        }
+
+        pickRequested = true;
+        // 关闭当前打开的界面，避免 /trash 打不开
+        if (client.currentScreen != null) {
+            if (client.currentScreen instanceof HandledScreen) {
+                client.player.closeHandledScreen();
+            } else {
+                client.setScreen(null);
+            }
+        }
+        feedback("正在自动打开垃圾桶（待搜索 " + PickList.size() + " 项物品）...");
+        client.getNetworkHandler().sendChatCommand("trash");
+        waitingForTrashScreen = true;
+    }
+
+    /**
+     * 发送本地反馈消息到聊天栏（仅自己可见）
+     */
+    static void feedback(String message) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.player != null) {
+            client.player.sendMessage(Text.literal(PREFIX + message), false);
+        }
     }
 
     /**
@@ -128,7 +211,7 @@ public class TrashCanDetectorClient implements ClientModInitializer {
         if (items.isEmpty()) {
             if (client.player != null) {
                 client.player.sendMessage(
-                    Text.literal("[垃圾桶探测器] 容器为空或数据未同步，无内容可导出"),
+                    Text.literal(PREFIX + "容器为空或数据未同步，无内容可导出"),
                     false
                 );
             }
@@ -152,20 +235,11 @@ public class TrashCanDetectorClient implements ClientModInitializer {
 
             LOGGER.info("垃圾桶内容已导出: {} / {}", jsonPath, mdPath);
 
-            if (client.player != null) {
-                sendClickableFileMessage(client, "JSON 文件", jsonPath);
-                sendClickableFileMessage(client, "MD 表格", mdPath);
-                client.player.sendMessage(
-                    Text.literal("[垃圾桶探测器] 导出完成，请点击查看文件"),
-                    false
-                );
-            }
-
         } catch (IOException e) {
             LOGGER.error("导出垃圾桶内容失败", e);
             if (client.player != null) {
                 client.player.sendMessage(
-                    Text.literal("[垃圾桶探测器] 导出失败: " + e.getMessage()),
+                    Text.literal(PREFIX + "导出失败: " + e.getMessage()),
                     false
                 );
             }
@@ -224,22 +298,6 @@ public class TrashCanDetectorClient implements ClientModInitializer {
         return sb.toString();
     }
 
-    /**
-     * 发送可点击的文件路径消息到聊天栏
-     */
-    private static void sendClickableFileMessage(MinecraftClient client, String label, Path path) {
-        String absPath = path.toAbsolutePath().toString();
-        MutableText prefix = Text.literal("[垃圾桶探测器] " + label + ": ");
-
-        MutableText link = Text.literal(absPath)
-            .setStyle(Style.EMPTY
-                .withColor(0x55FF55)
-                .withUnderline(true)
-                .withClickEvent(new ClickEvent.OpenFile(absPath)));
-
-        client.player.sendMessage(prefix.append(link), false);
-    }
-
     private static String timestamp() {
         return LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
     }
@@ -260,41 +318,5 @@ public class TrashCanDetectorClient implements ClientModInitializer {
         return text.contains("物品被意外清理")
             && text.contains("公共垃圾桶")
             && text.contains("领回");
-    }
-
-    // ==================== #pick 指令支持（供 Mixin 调用） ====================
-
-    /**
-     * 由 ChatScreenMixin 调用：触发自动打开垃圾桶
-     * @param argument 用户输入的物品名称参数（可为空）
-     */
-    public static void triggerAutoPick(String argument) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player == null) return;
-
-        if (waitingForTrashScreen || pendingRead) {
-            client.player.sendMessage(
-                Text.literal("[垃圾桶探测器] 已在处理中，请稍候..."),
-                false
-            );
-            return;
-        }
-
-        LOGGER.info("玩家通过 #pick 指令触发，参数: {}", argument);
-        client.player.sendMessage(
-            Text.literal("[垃圾桶探测器] 正在自动打开垃圾桶..."),
-            false
-        );
-        client.getNetworkHandler().sendChatCommand("trash");
-        waitingForTrashScreen = true;
-    }
-
-    /**
-     * 由 ChatScreenMixin 调用：返回所有注册物品 ID 用于 Tab 补全
-     */
-    public static Iterable<String> getItemIdSuggestions() {
-        return () -> StreamSupport.stream(Registries.ITEM.spliterator(), false)
-            .map(item -> Registries.ITEM.getId(item).toString())
-            .iterator();
     }
 }
