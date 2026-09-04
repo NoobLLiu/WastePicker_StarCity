@@ -61,6 +61,11 @@ public final class PickCommandHandler {
                 execute(COMMAND + " start");
                 return 1;
             }));
+        root.then(LiteralArgumentBuilder.<ClientCommandSource>literal("auto")
+            .executes(ctx -> {
+                execute(COMMAND + " auto");
+                return 1;
+            }));
         root.then(LiteralArgumentBuilder.<ClientCommandSource>literal("list")
             .executes(ctx -> {
                 execute(COMMAND + " list");
@@ -97,6 +102,13 @@ public final class PickCommandHandler {
                     cmdStart();
                 }
             }
+            case "auto" -> {
+                if (args.length != 1) {
+                    usage();
+                } else {
+                    cmdAuto();
+                }
+            }
             case "list" -> {
                 if (args.length != 1) {
                     usage();
@@ -125,6 +137,7 @@ public final class PickCommandHandler {
     private static void usage() {
         feedback("用法：");
         feedback("//pick start —— 打开垃圾桶并自动翻页搜索列表中的物品");
+        feedback("//pick auto —— 开/关自动模式（检测到垃圾桶刷新后导出并自动搜索）");
         feedback("//pick add <物品ID> —— 添加要搜索的物品（支持 Tab 补全）");
         feedback("//pick list —— 查看当前搜索列表");
         feedback("//pick del <物品ID> —— 删除列表中的物品（支持 Tab 补全）");
@@ -132,6 +145,14 @@ public final class PickCommandHandler {
 
     private static void cmdStart() {
         TrashCanDetectorClient.requestPickStart();
+    }
+
+    private static void cmdAuto() {
+        if (TrashCanDetectorClient.toggleAutoPick()) {
+            feedback("自动拾取已开启：每次检测到垃圾桶刷新，导出后会自动翻页搜索（//pick start 不受影响）");
+        } else {
+            feedback("自动拾取已关闭：检测到垃圾桶刷新时仅自动打开并导出");
+        }
     }
 
     private static void cmdAdd(String id) {

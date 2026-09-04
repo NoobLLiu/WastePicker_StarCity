@@ -10,9 +10,6 @@ import net.minecraft.component.DataComponentTypes;
 import net.minecraft.item.ItemStack;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.Slot;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,7 +28,8 @@ import java.util.Map;
 /**
  * 客户端入口点：
  * 1. 监听垃圾桶刷新消息，自动打开垃圾桶 GUI 并导出内容（//pick start 也会走到这里）
- * 2. 通过 //pick 指令驱动 TrashPicker 自动翻页拾取（指令解析见 PickCommandHandler）
+ * 2. 通过 //pick 指令驱动 TrashPicker 自动翻页拾取（指令解析见 PickCommandHandler）；
+ *    //pick auto 开启后，检测到刷新时导出完成也会自动接续翻页拾取
  */
 public class TrashCanDetectorClient implements ClientModInitializer {
 
@@ -47,8 +45,10 @@ public class TrashCanDetectorClient implements ClientModInitializer {
     private static boolean pendingRead;
     private static HandledScreen<?> pendingScreen;
     private static int pendingTicks;
-    /** 导出完成后自动开始拾取（//pick start） */
+    /** 导出完成后自动开始拾取（//pick start，或 //pick auto 开启时由刷新消息触发） */
     private static boolean pickRequested;
+    /** //pick auto 开关：开启后检测到垃圾桶刷新时，导出完成自动接续翻页拾取 */
+    private static boolean autoPick;
 
     @Override
     public void onInitializeClient() {
@@ -77,7 +77,12 @@ public class TrashCanDetectorClient implements ClientModInitializer {
                     // 发送 /trash 指令打开垃圾桶插件 GUI
                     client.getNetworkHandler().sendChatCommand("trash");
                     waitingForTrashScreen = true;
-                    pickRequested = false;
+                    // //pick auto 开启时，导出完成后自动接续翻页拾取
+                    pickRequested = autoPick;
+                    if (autoPick && PickList.isEmpty()) {
+                        feedback("自动拾取已开启，但搜索列表为空（//pick add 添加物品），本次仅导出");
+                        pickRequested = false;
+                    }
                 }
             }
 
@@ -109,7 +114,7 @@ public class TrashCanDetectorClient implements ClientModInitializer {
                 readAndExportContainer(client, pendingScreen);
                 pendingScreen = null;
 
-                // //pick start：导出后开始自动翻页拾取
+                // //pick start 或 auto 模式：导出后开始自动翻页拾取
                 if (doPick) {
                     TrashPicker.begin();
                 }
@@ -121,6 +126,14 @@ public class TrashCanDetectorClient implements ClientModInitializer {
 
     static boolean isBusy() {
         return waitingForTrashScreen || pendingRead || TrashPicker.isActive();
+    }
+
+    /**
+     * 由 PickCommandHandler 调用（//pick auto）：开关自动拾取模式，返回切换后的状态
+     */
+    static boolean toggleAutoPick() {
+        autoPick = !autoPick;
+        return autoPick;
     }
 
     /**
@@ -222,15 +235,6 @@ public class TrashCanDetectorClient implements ClientModInitializer {
 
             LOGGER.info("垃圾桶内容已导出: {} / {}", jsonPath, mdPath);
 
-            if (client.player != null) {
-                sendClickableFileMessage(client, "JSON 文件", jsonPath);
-                sendClickableFileMessage(client, "MD 表格", mdPath);
-                client.player.sendMessage(
-                    Text.literal(PREFIX + "导出完成，请点击查看文件"),
-                    false
-                );
-            }
-
         } catch (IOException e) {
             LOGGER.error("导出垃圾桶内容失败", e);
             if (client.player != null) {
@@ -292,22 +296,6 @@ public class TrashCanDetectorClient implements ClientModInitializer {
               .append(" |\n");
         }
         return sb.toString();
-    }
-
-    /**
-     * 发送可点击的文件路径消息到聊天栏
-     */
-    private static void sendClickableFileMessage(MinecraftClient client, String label, Path path) {
-        String absPath = path.toAbsolutePath().toString();
-        MutableText prefix = Text.literal(PREFIX + label + ": ");
-
-        MutableText link = Text.literal(absPath)
-            .setStyle(Style.EMPTY
-                .withColor(0x55FF55)
-                .withUnderline(true)
-                .withClickEvent(new ClickEvent.OpenFile(absPath)));
-
-        client.player.sendMessage(prefix.append(link), false);
     }
 
     private static String timestamp() {

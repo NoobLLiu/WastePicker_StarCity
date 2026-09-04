@@ -11,7 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * 垃圾桶自动翻页拾取状态机（由 //pick start 触发）：
+ * 垃圾桶自动翻页拾取状态机（由 //pick start 触发，或 //pick auto 开启时由刷新检测自动接续）：
  * 1. 在 0-35 正文格中查找命中搜索列表的物品，shift 点击优先进背包
  * 2. 若物品仍在原格（背包已满/被拒），改用 Ctrl+Q 整组丢到身边
  * 3. 每页处理完后点击“下一页”按钮；翻页前记住本页内容，
@@ -31,8 +31,10 @@ public final class TrashPicker {
 
     /** 拾取/丢出点击后的确认等待（tick） */
     private static final int VERIFY_TICKS = 10;
-    /** 翻页后等待内容同步（tick） */
-    private static final int FLIP_TICKS = 20;
+    /** 点击“下一页”后先等这几 tick 再开始轮询（点击回包尚未到达，此时读到的一定是旧页） */
+    private static final int FLIP_MIN_TICKS = 3;
+    /** 翻页等待上限（tick）：内容始终未变才判定已到最后一页（保留 1 秒兜底，防慢服误判翻到底） */
+    private static final int FLIP_MAX_TICKS = 20;
     /** 安全上限：最多翻多少页，防止极端情况死循环 */
     private static final int MAX_PAGES = 200;
     /** 连续拾取失败多少次后放弃 */
@@ -54,6 +56,8 @@ public final class TrashPicker {
     private static int actionCount;
     /** 翻页前的整页内容签名，用于翻到底检测 */
     private static String pageSignature;
+    /** 翻页等待期间最近一次读到的内容签名，要求连续两 tick 一致才视为新页同步完成 */
+    private static String flipLastSig;
     private static int pagesFlipped;
     private static int consecutiveFailures;
 
@@ -162,6 +166,7 @@ public final class TrashPicker {
 
         // 翻页前记住本页内容（用于翻到底检测）
         pageSignature = signature(handler);
+        flipLastSig = null;
         click(client, handler, button, 0, SlotActionType.PICKUP);
         pagesFlipped++;
         if (pagesFlipped % 10 == 0) {
@@ -213,20 +218,33 @@ public final class TrashPicker {
     }
 
     /**
-     * 等待翻页内容同步：与翻页前内容相同 → 已翻到底，遍历结束
+     * 等待翻页内容同步：与翻页前内容相同 → 已翻到底，遍历结束。
+     * 最小等待后逐 tick 轮询，内容一旦变化且连续两 tick 稳定即提前进入新页，无需等满上限；
+     * 只有内容一直不变时才等到 FLIP_MAX_TICKS 判定翻到底（防止慢服同步慢导致误判）。
      */
     private static void tickFlip(MinecraftClient client, ScreenHandler handler) {
         waitTicks++;
-        if (waitTicks < FLIP_TICKS) {
+        if (waitTicks < FLIP_MIN_TICKS) {
             return;
         }
 
-        if (signature(handler).equals(pageSignature)) {
-            finish(client, "已翻到最后一页，共遍历 " + pagesFlipped + " 页");
-        } else {
+        String sig = signature(handler);
+
+        if (sig.equals(pageSignature)) {
+            // 内容仍是旧页：等满上限仍未变化 → 已翻到最后一页
+            if (waitTicks >= FLIP_MAX_TICKS) {
+                finish(client, "已翻到最后一页，共遍历 " + pagesFlipped + " 页");
+            }
+            return;
+        }
+
+        // 内容已不同于旧页：再确认一个 tick 保持稳定，避免读到“半同步”的页面
+        if (sig.equals(flipLastSig)) {
             // 新的一页，从第 0 格重新扫描
             scanSlot = 0;
             phase = Phase.SCAN;
+        } else {
+            flipLastSig = sig;
         }
     }
 
