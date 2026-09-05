@@ -68,6 +68,13 @@ public class TrashCanDetectorClient implements ClientModInitializer {
                 }
 
                 LOGGER.info("检测到垃圾桶刷新消息: {}", text);
+
+                // 仅在 //pick auto 开启时才自动提醒和打开垃圾桶
+                if (!autoPick) {
+                    LOGGER.info("//pick auto 未开启，跳过自动提醒和打开");
+                    return true;
+                }
+
                 MinecraftClient client = MinecraftClient.getInstance();
                 if (client.player != null) {
                     client.player.sendMessage(
@@ -77,9 +84,8 @@ public class TrashCanDetectorClient implements ClientModInitializer {
                     // 发送 /trash 指令打开垃圾桶插件 GUI
                     client.getNetworkHandler().sendChatCommand("trash");
                     waitingForTrashScreen = true;
-                    // //pick auto 开启时，导出完成后自动接续翻页拾取
-                    pickRequested = autoPick;
-                    if (autoPick && PickList.isEmpty()) {
+                    pickRequested = true;
+                    if (PickList.isEmpty()) {
                         feedback("自动拾取已开启，但搜索列表为空（//pick add 添加物品），本次仅导出");
                         pickRequested = false;
                     }
