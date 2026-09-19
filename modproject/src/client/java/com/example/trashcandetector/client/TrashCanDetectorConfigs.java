@@ -29,8 +29,11 @@ public final class TrashCanDetectorConfigs implements IConfigHandler {
         "autoEnableFlightDevice", false, "进入游戏或切换维度后自动开启无尽飞行器。"
     ).translatedName("自动开启无尽飞行器");
     public static final ConfigBoolean AUTO_SEND_ZZZ_WHILE_SLEEPING = new ConfigBoolean(
-        "autoSendZzzWhileSleeping", false, "每次进入睡眠状态时自动发送一次聊天消息 zzz。"
+        "autoSendZzzWhileSleeping", false, "睡觉期间按配置间隔自动发送聊天消息 zzz。"
     ).translatedName("睡觉时自动发送 zzz");
+    public static final ConfigInteger SLEEP_ZZZ_INTERVAL_TICKS = new ConfigInteger(
+        "sleepZzzIntervalTicks", 100, 1, 72000, "睡觉期间重复发送 zzz 的间隔 tick 数。"
+    ).translatedName("zzz 发送间隔（tick）");
     public static final ConfigBoolean SHULKER_ORGANIZER_ENABLED = new ConfigBoolean(
         "shulkerOrganizerEnabled", false, "允许使用 QuickShulker 自动整理潜影盒。"
     ).translatedName("启用潜影盒整理");
@@ -93,6 +96,7 @@ public final class TrashCanDetectorConfigs implements IConfigHandler {
         POINT_BUYER_ENABLED,
         AUTO_ENABLE_FLIGHT_DEVICE,
         AUTO_SEND_ZZZ_WHILE_SLEEPING,
+        SLEEP_ZZZ_INTERVAL_TICKS,
         SHULKER_ORGANIZER_ENABLED,
         SHULKER_ORGANIZER_MODE,
         SHULKER_CATEGORY_RULES,
@@ -162,6 +166,10 @@ public final class TrashCanDetectorConfigs implements IConfigHandler {
 
     public static int pointsPerPurchase() {
         return Math.max(1, Math.min(100000, POINTS_PER_PURCHASE.getIntegerValue()));
+    }
+
+    public static int sleepZzzIntervalTicks() {
+        return Math.max(1, Math.min(72000, SLEEP_ZZZ_INTERVAL_TICKS.getIntegerValue()));
     }
 
     public static void saveNow() {
