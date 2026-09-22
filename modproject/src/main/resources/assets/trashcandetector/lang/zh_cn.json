@@ -44,5 +44,13 @@
   "config.comment.shulkercategoryrules": "格式：类别|item/tag/name|匹配值，按从上到下的顺序优先匹配。",
   "config.comment.organizecurrentshulkerhotkey": "整理当前或鼠标悬停的潜影盒。",
   "config.comment.organizeallshulkershotkey": "按配置模式整理背包内全部潜影盒。",
+  "config.name.autobreakbedrock": "自动处理附近基岩",
+  "config.name.bedrocktargety": "基岩目标 Y 层",
+  "config.name.bedrockscanradius": "基岩扫描半径",
+  "config.name.breakbedrockhotkey": "处理附近基岩快捷键",
+  "config.comment.autobreakbedrock": "自动扫描玩家附近指定 Y 层的基岩，并使用便捷式破基岩装置对着基岩放置。",
+  "config.comment.bedrocktargety": "扫描的基岩 Y 坐标，默认 -64，可修改为其他高度。",
+  "config.comment.bedrockscanradius": "以玩家为中心的水平扫描半径，单位为方块。",
+  "config.comment.breakbedrockhotkey": "扫描并使用便捷式破基岩装置处理附近基岩。",
   "trashcandetector.hotkeys": "垃圾桶探测器快捷键"
 }

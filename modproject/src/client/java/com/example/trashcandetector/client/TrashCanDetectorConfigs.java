@@ -34,6 +34,15 @@ public final class TrashCanDetectorConfigs implements IConfigHandler {
     public static final ConfigBoolean AUTO_TAKE_SLIMEFUN_BUG = new ConfigBoolean(
         "autoTakeSlimefunBug", false, "打开粘液菜单时自动取出显示名为 BUG 的骨粉物品。"
     ).translatedName("自动取出粘液菜单 BUG");
+    public static final ConfigBoolean AUTO_BREAK_BEDROCK = new ConfigBoolean(
+        "autoBreakBedrock", false, "自动识别附近指定 Y 层的基岩并使用便捷式破基岩装置。"
+    ).translatedName("自动处理附近基岩");
+    public static final ConfigInteger BEDROCK_TARGET_Y = new ConfigInteger(
+        "bedrockTargetY", -64, -64, 320, "扫描的基岩 Y 坐标，可修改为非 -64 层。"
+    ).translatedName("基岩目标 Y 层");
+    public static final ConfigInteger BEDROCK_SCAN_RADIUS = new ConfigInteger(
+        "bedrockScanRadius", 4, 1, 16, "以玩家为中心扫描的水平半径。"
+    ).translatedName("基岩扫描半径");
     public static final ConfigInteger SLEEP_ZZZ_INTERVAL_TICKS = new ConfigInteger(
         "sleepZzzIntervalTicks", 100, 1, 72000, "睡觉期间重复发送 zzz 的间隔 tick 数。"
     ).translatedName("zzz 发送间隔（tick）");
@@ -90,6 +99,9 @@ public final class TrashCanDetectorConfigs implements IConfigHandler {
     public static final ConfigHotkey TAKE_SLIMEFUN_BUG_HOTKEY = new ConfigHotkey(
         "takeSlimefunBugHotkey", "", "从当前粘液菜单取出显示名为 BUG 的骨粉物品。"
     ).translatedName("取出粘液菜单 BUG 快捷键");
+    public static final ConfigHotkey BREAK_BEDROCK_HOTKEY = new ConfigHotkey(
+        "breakBedrockHotkey", "", "扫描并使用便捷式破基岩装置处理附近基岩。"
+    ).translatedName("处理附近基岩快捷键");
     public static final ConfigHotkey ORGANIZE_CURRENT_SHULKER_HOTKEY = new ConfigHotkey(
         "organizeCurrentShulkerHotkey", "", "整理当前或鼠标悬停的潜影盒。"
     ).translatedName("整理当前潜影盒快捷键");
@@ -104,6 +116,9 @@ public final class TrashCanDetectorConfigs implements IConfigHandler {
         AUTO_SEND_ZZZ_WHILE_SLEEPING,
         SLEEP_ZZZ_INTERVAL_TICKS,
         AUTO_TAKE_SLIMEFUN_BUG,
+        AUTO_BREAK_BEDROCK,
+        BEDROCK_TARGET_Y,
+        BEDROCK_SCAN_RADIUS,
         SHULKER_ORGANIZER_ENABLED,
         SHULKER_ORGANIZER_MODE,
         SHULKER_CATEGORY_RULES,
@@ -123,6 +138,7 @@ public final class TrashCanDetectorConfigs implements IConfigHandler {
         OPEN_CONFIG_HOTKEY,
         ENABLE_FLIGHT_DEVICE_HOTKEY,
         TAKE_SLIMEFUN_BUG_HOTKEY,
+        BREAK_BEDROCK_HOTKEY,
         ORGANIZE_CURRENT_SHULKER_HOTKEY,
         ORGANIZE_ALL_SHULKERS_HOTKEY
     );
@@ -178,6 +194,14 @@ public final class TrashCanDetectorConfigs implements IConfigHandler {
 
     public static int sleepZzzIntervalTicks() {
         return Math.max(1, Math.min(72000, SLEEP_ZZZ_INTERVAL_TICKS.getIntegerValue()));
+    }
+
+    public static int bedrockTargetY() {
+        return Math.max(-64, Math.min(320, BEDROCK_TARGET_Y.getIntegerValue()));
+    }
+
+    public static int bedrockScanRadius() {
+        return Math.max(1, Math.min(16, BEDROCK_SCAN_RADIUS.getIntegerValue()));
     }
 
     public static void saveNow() {

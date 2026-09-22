@@ -44,5 +44,13 @@
   "config.comment.shulkercategoryrules": "Format: category|item/tag/name|value, in priority order.",
   "config.comment.organizecurrentshulkerhotkey": "Organize the current or hovered shulker.",
   "config.comment.organizeallshulkershotkey": "Organize all eligible inventory shulkers using the configured mode.",
+  "config.name.autobreakbedrock": "Automatically Process Nearby Bedrock",
+  "config.name.bedrocktargety": "Bedrock Target Y",
+  "config.name.bedrockscanradius": "Bedrock Scan Radius",
+  "config.name.breakbedrockhotkey": "Process Nearby Bedrock Hotkey",
+  "config.comment.autobreakbedrock": "Scan bedrock at the configured Y level and place the bedrock device against each target.",
+  "config.comment.bedrocktargety": "Y coordinate to scan for bedrock; defaults to -64 and can be changed.",
+  "config.comment.bedrockscanradius": "Horizontal scan radius around the player, in blocks.",
+  "config.comment.breakbedrockhotkey": "Scan and use the bedrock device against nearby bedrock.",
   "trashcandetector.hotkeys": "TrashCan Detector Hotkeys"
 }

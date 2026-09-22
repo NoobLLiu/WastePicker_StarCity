@@ -162,13 +162,14 @@ public class TrashCanDetectorClient implements ClientModInitializer {
             InfiniteFlightDeviceManager.tick(client);
             SleepChatSender.tick(client);
             SlimefunBugManager.tick(client);
+            BedrockBreakerManager.tick(client);
         });
     }
 
     static boolean isBusy() {
         return waitingForTrashScreen || pendingRead || TrashPicker.isActive()
             || TrashCleaner.isActive() || ShulkerOrganizer.isActive()
-            || SlimefunBugManager.isActive();
+            || SlimefunBugManager.isActive() || BedrockBreakerManager.isActive();
     }
 
     private static void cancelPendingTrashRequest() {
