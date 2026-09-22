@@ -103,6 +103,7 @@ public class TrashCanDetectorClient implements ClientModInitializer {
 
         // 2) GUI 打开监听：检测容器屏幕出现，准备读取
         ScreenEvents.AFTER_INIT.register((client, screen, width, height) -> {
+            SlimefunBugManager.onScreenOpened(screen);
             if (!waitingForTrashScreen) return;
             if (!(screen instanceof HandledScreen<?> handled)) return;
 
@@ -160,12 +161,14 @@ public class TrashCanDetectorClient implements ClientModInitializer {
             PointBuyer.tick(client);
             InfiniteFlightDeviceManager.tick(client);
             SleepChatSender.tick(client);
+            SlimefunBugManager.tick(client);
         });
     }
 
     static boolean isBusy() {
         return waitingForTrashScreen || pendingRead || TrashPicker.isActive()
-            || TrashCleaner.isActive() || ShulkerOrganizer.isActive();
+            || TrashCleaner.isActive() || ShulkerOrganizer.isActive()
+            || SlimefunBugManager.isActive();
     }
 
     private static void cancelPendingTrashRequest() {
