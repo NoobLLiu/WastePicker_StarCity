@@ -37,6 +37,10 @@ public final class TrashCanDetectorMalilib implements IInitializationHandler {
         TrashCanDetectorConfigs.OPEN_CONFIG_HOTKEY.getKeybind().setCallback(new ConfigCallback());
         TrashCanDetectorConfigs.ENABLE_FLIGHT_DEVICE_HOTKEY.getKeybind()
             .setCallback(new EnableFlightDeviceCallback());
+        TrashCanDetectorConfigs.TAKE_SLIMEFUN_BUG_HOTKEY.getKeybind()
+            .setCallback(new TakeSlimefunBugCallback());
+        TrashCanDetectorConfigs.BREAK_BEDROCK_HOTKEY.getKeybind()
+            .setCallback(new BreakBedrockCallback());
         TrashCanDetectorConfigs.ORGANIZE_CURRENT_SHULKER_HOTKEY.getKeybind()
             .setCallback(new OrganizeCurrentCallback());
         TrashCanDetectorConfigs.ORGANIZE_ALL_SHULKERS_HOTKEY.getKeybind()
@@ -51,6 +55,8 @@ public final class TrashCanDetectorMalilib implements IInitializationHandler {
             manager.addKeybindToMap(TrashCanDetectorConfigs.START_PICK_HOTKEY.getKeybind());
             manager.addKeybindToMap(TrashCanDetectorConfigs.OPEN_CONFIG_HOTKEY.getKeybind());
             manager.addKeybindToMap(TrashCanDetectorConfigs.ENABLE_FLIGHT_DEVICE_HOTKEY.getKeybind());
+            manager.addKeybindToMap(TrashCanDetectorConfigs.TAKE_SLIMEFUN_BUG_HOTKEY.getKeybind());
+            manager.addKeybindToMap(TrashCanDetectorConfigs.BREAK_BEDROCK_HOTKEY.getKeybind());
             manager.addKeybindToMap(TrashCanDetectorConfigs.ORGANIZE_CURRENT_SHULKER_HOTKEY.getKeybind());
             manager.addKeybindToMap(TrashCanDetectorConfigs.ORGANIZE_ALL_SHULKERS_HOTKEY.getKeybind());
         }
@@ -62,6 +68,8 @@ public final class TrashCanDetectorMalilib implements IInitializationHandler {
                 TrashCanDetectorConfigs.START_PICK_HOTKEY,
                 TrashCanDetectorConfigs.OPEN_CONFIG_HOTKEY,
                 TrashCanDetectorConfigs.ENABLE_FLIGHT_DEVICE_HOTKEY,
+                TrashCanDetectorConfigs.TAKE_SLIMEFUN_BUG_HOTKEY,
+                TrashCanDetectorConfigs.BREAK_BEDROCK_HOTKEY,
                 TrashCanDetectorConfigs.ORGANIZE_CURRENT_SHULKER_HOTKEY,
                 TrashCanDetectorConfigs.ORGANIZE_ALL_SHULKERS_HOTKEY
             );
@@ -99,6 +107,22 @@ public final class TrashCanDetectorMalilib implements IInitializationHandler {
         @Override
         public boolean onKeyAction(KeyAction action, IKeybind key) {
             InfiniteFlightDeviceManager.requestEnsure();
+            return true;
+        }
+    }
+
+    private static final class TakeSlimefunBugCallback implements IHotkeyCallback {
+        @Override
+        public boolean onKeyAction(KeyAction action, IKeybind key) {
+            SlimefunBugManager.requestManual();
+            return true;
+        }
+    }
+
+    private static final class BreakBedrockCallback implements IHotkeyCallback {
+        @Override
+        public boolean onKeyAction(KeyAction action, IKeybind key) {
+            BedrockBreakerManager.requestManual();
             return true;
         }
     }
